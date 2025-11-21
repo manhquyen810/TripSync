@@ -1,0 +1,22 @@
+# Python virtual environment
+venv/
+
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# IDE/editor files
+.vscode/
+*.swp
+
+# Environment files (chỉ giữ .env.example)
+.env
+
+# Uploads, logs, temp files
+uploads/
+*.log
+*.tmp
+
+# Alembic migration cache
+migrations/__pycache__/
