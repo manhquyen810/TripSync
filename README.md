@@ -12,4 +12,4 @@
 
 - Lệnh check kết nối DB: python -m app.database
 
-- Lệnh chạy fastapi : uvicorn main:app --reload
+- Lệnh chạy fastapi : uvicorn app.main:app --reload
