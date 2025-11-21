@@ -1,0 +1,38 @@
+# Python virtual environment (Cập nhật thêm .venv)
+venv/
+.venv/
+env/
+
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+
+# Environment files (Bảo mật)
+.env
+.env.local
+
+# Uploads, logs, temp files
+uploads/
+*.log
+*.tmp
+
+# Database local (Chặn file db local nếu dùng SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# OS generated files (Rác hệ điều hành)
+.DS_Store
+Thumbs.db
+
+# Alembic & Testing
+migrations/__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
