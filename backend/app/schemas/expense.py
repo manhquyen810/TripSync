@@ -20,7 +20,7 @@ class ExpenseRead(BaseModel):
     split_method: str
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # --- Settlement Schemas (Mới) ---
 class SettlementCreate(BaseModel):
@@ -37,4 +37,4 @@ class SettlementRead(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True

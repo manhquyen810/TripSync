@@ -9,4 +9,4 @@ class DocumentRead(BaseModel):
     category: str | None = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
