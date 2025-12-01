@@ -38,3 +38,18 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     )
     
     return ApiResponse(message="Đăng nhập thành công!", data={"access_token": access_token, "token_type": "bearer"})
+
+@router.post("/token", include_in_schema=False)
+def login_for_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = authenticate_user(db, form_data.username, form_data.password)
+    
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email hoặc mật khẩu sai")
+    
+    access_token = create_access_token(
+        data={"sub": str(user.id)}, 
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    
+    # Return dict phẳng, không bọc trong ApiResponse hay data
+    return {"access_token": access_token, "token_type": "bearer"}

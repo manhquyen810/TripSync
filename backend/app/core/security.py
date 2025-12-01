@@ -4,6 +4,9 @@ from jwt import encode, decode
 from jwt.exceptions import PyJWTError
 from app.config import SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
 from typing import Optional
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 pwd_context = CryptContext(
     schemes=["argon2"],
