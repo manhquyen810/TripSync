@@ -20,4 +20,4 @@ class ActivityRead(BaseModel):
     is_confirmed: bool
 
     class Config:
-        from_attributes = True
+        orm_mode = True

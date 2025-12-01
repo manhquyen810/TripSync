@@ -15,4 +15,4 @@ class TripRead(BaseModel):
     end_date: Optional[date] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True

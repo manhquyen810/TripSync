@@ -21,7 +21,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     
     return ApiResponse(
         message="Đăng kí thành công!", 
-        data=UserRead.model_validate(user) 
+        data=UserRead.from_orm(user) 
     )
 
 @router.post("/login", response_model=ApiResponse)

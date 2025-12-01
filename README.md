@@ -1,6 +1,6 @@
 # TripSync
 
-# Back-end
+# Back-end(python 3.12)
 
 - Lệnh cài đặt venv: python -m venv venv
 
