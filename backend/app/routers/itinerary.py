@@ -10,13 +10,19 @@ router = APIRouter(prefix="/itinerary", tags=["itinerary"])
 
 @router.post("/days", response_model=ApiResponse)
 def create_day(trip_id: int, day_number: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    day = create_itinerary_day(db, trip_id=trip_id, day_number=day_number)
-    return ApiResponse(message="Tạo ngày thành công", data=day)
+    try:
+        day = create_itinerary_day(db, trip_id=trip_id, day_number=day_number)
+        return ApiResponse(message="Tạo ngày thành công", data=day)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+
+
+
 
 @router.post("/activities", response_model=ApiResponse)
 def add_activity(a: ActivityCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    # Truyền nguyên object 'a' để lấy start_time
-    activity = create_activity(db, activity=a)
+    activity = create_activity(db, activity=a,user_id=current_user.id)
     return ApiResponse(message="Thêm hoạt động thành công", data=activity)
 
 @router.post("/activities/{activity_id}/vote", response_model=ApiResponse)
