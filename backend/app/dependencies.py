@@ -26,6 +26,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="User not found"
+            detail="Người dùng không tồn tại"
         )
     return user
