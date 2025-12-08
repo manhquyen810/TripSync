@@ -6,6 +6,8 @@ class TripCreate(BaseModel):
     name: str
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    base_currency: Optional[str] = "VND"
+    invite_code: Optional[str] = None
 
 class TripRead(BaseModel):
     id: int
@@ -13,6 +15,8 @@ class TripRead(BaseModel):
     owner_id: int
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    base_currency: str = "VND"
+    invite_code: Optional[str] = None
 
     class Config:
         orm_mode = True

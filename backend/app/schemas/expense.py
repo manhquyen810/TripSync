@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 # --- Expense Schemas ---
@@ -9,6 +9,9 @@ class ExpenseCreate(BaseModel):
     currency: str = "VND"
     description: Optional[str] = None
     split_method: str = "equal"
+    expense_date: Optional[datetime] = None
+
+    involved_user_ids: List[int] # Danh sách user_id tham gia chia sẻ chi phí
 
 class ExpenseRead(BaseModel):
     id: int
@@ -18,6 +21,7 @@ class ExpenseRead(BaseModel):
     currency: str
     description: Optional[str] = None
     split_method: str
+    expense_date: Optional[datetime]
 
     class Config:
         orm_mode = True
