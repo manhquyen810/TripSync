@@ -10,6 +10,7 @@ class ItineraryDay(Base):
     day_number = Column(Integer, nullable=False)
 
     trip = relationship("Trip", back_populates="itinerary_days")
+    activities = relationship("Activity", back_populates="day", cascade="all, delete-orphan")
 class Activity(Base):
     __tablename__ = "activities"
     id = Column(Integer, primary_key=True, index=True)
@@ -21,8 +22,10 @@ class Activity(Base):
     location_long = Column(String, nullable=True)
     start_time = Column(Time, nullable=True) 
     is_confirmed = Column(Boolean, default=False)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    day = relationship("ItineraryDay", back_populates="activities")
 class ActivityVote(Base):
     __tablename__ = "activity_votes"
     id = Column(Integer, primary_key=True, index=True)
