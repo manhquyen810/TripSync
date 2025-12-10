@@ -15,5 +15,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     from app.models.user import User
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
+<<<<<<< HEAD
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+=======
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Người dùng không tồn tại"
+        )
+>>>>>>> 3918bbd4086493c8b5d1ef2b773f156c1a969480
     return user

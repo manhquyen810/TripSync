@@ -5,6 +5,7 @@ from app.crud.crud import create_expense, list_expenses_for_trip, create_settlem
 from app.schemas.expense import ExpenseCreate, SettlementCreate
 from app.schemas.response import ApiResponse
 from app.dependencies import get_current_user
+from app.services.finance_service import calculate_trip_balances
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -18,6 +19,11 @@ def add_expense(e: ExpenseCreate, db: Session = Depends(get_db), current_user = 
 def get_expenses(trip_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     expenses = list_expenses_for_trip(db, trip_id)
     return ApiResponse(message="Danh sách chi tiêu", data=expenses)
+
+@router.get("/trip/{trip_id}/balances", response_model=ApiResponse)
+def get_trip_balances(trip_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    balances = calculate_trip_balances(db, trip_id)
+    return ApiResponse(message="Bảng cân đối chi tiêu", data=balances)
 
 # --- API MỚI ---
 @router.post("/settle", response_model=ApiResponse)
