@@ -18,7 +18,7 @@ from app.routers import checklist as checklist_router
 
 # --- RESET DATABASE (Dùng cho Dev) ---
 # Cảnh báo: Dòng này sẽ XÓA SẠCH dữ liệu cũ mỗi khi restart server
-# Base.metadata.drop_all(bind=engine) 
+Base.metadata.drop_all(bind=engine) 
 # -------------------------------------
 
 # Tạo bảng Database mới

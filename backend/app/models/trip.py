@@ -1,9 +1,11 @@
-import uuid
+import random
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base # Sửa dòng này (bỏ dấu chấm)
 
+def generate_pin():
+    return str(random.randint(100000, 999999))
 class Trip(Base):
     __tablename__ = "trips"
     id = Column(Integer, primary_key=True, index=True)
@@ -12,7 +14,7 @@ class Trip(Base):
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     base_currency = Column(String,default="VND")
-    invite_code = Column(String, nullable=True, default=lambda: str(uuid.uuid4())[:8], index=True)   
+    invite_code = Column(String, default=generate_pin, unique=True, index=True) 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     members = relationship("User", back_populates="trips", secondary="trip_members")
