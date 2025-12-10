@@ -26,7 +26,6 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=ApiResponse)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # Swagger gửi email vào trường 'username', nên ta lấy form_data.username
     user = authenticate_user(db, form_data.username, form_data.password)
     
     if not user:
@@ -50,6 +49,4 @@ def login_for_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Sess
         data={"sub": str(user.id)}, 
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    
-    # Return dict phẳng, không bọc trong ApiResponse hay data
     return {"access_token": access_token, "token_type": "bearer"}
