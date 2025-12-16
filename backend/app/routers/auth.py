@@ -21,12 +21,11 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     
     return ApiResponse(
         message="Đăng kí thành công!", 
-        data=UserRead.model_validate(user) 
+        data=UserRead.from_orm(user) 
     )
 
 @router.post("/login", response_model=ApiResponse)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # Swagger gửi email vào trường 'username', nên ta lấy form_data.username
     user = authenticate_user(db, form_data.username, form_data.password)
     
     if not user:
@@ -38,3 +37,16 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     )
     
     return ApiResponse(message="Đăng nhập thành công!", data={"access_token": access_token, "token_type": "bearer"})
+
+@router.post("/token", include_in_schema=False)
+def login_for_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = authenticate_user(db, form_data.username, form_data.password)
+    
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email hoặc mật khẩu sai")
+    
+    access_token = create_access_token(
+        data={"sub": str(user.id)}, 
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
