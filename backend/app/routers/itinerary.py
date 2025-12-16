@@ -15,7 +15,10 @@ def create_day(trip_id: int, day_number: int, db: Session = Depends(get_db), cur
         return ApiResponse(message="Tạo ngày thành công", data=day)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
-    
+
+
+
+
 
 @router.post("/activities", response_model=ApiResponse)
 def add_activity(a: ActivityCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
