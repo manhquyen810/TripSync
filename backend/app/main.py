@@ -5,7 +5,7 @@ import os
 from typing import List, Dict
 
 # --- QUAN TRỌNG: Import TỪNG file model để SQLAlchemy nhận diện và tạo bảng ---
-from app.models import user, trip, intinerary, expense, document, checklist
+from app.models import itinerary, user, trip, expense, document, checklist
 
 # Import routers
 from app.routers import auth as auth_router
@@ -18,7 +18,7 @@ from app.routers import checklist as checklist_router
 
 # --- RESET DATABASE (Dùng cho Dev) ---
 # Cảnh báo: Dòng này sẽ XÓA SẠCH dữ liệu cũ mỗi khi restart server
-Base.metadata.drop_all(bind=engine) 
+# Base.metadata.drop_all(bind=engine) 
 # -------------------------------------
 
 # Tạo bảng Database mới
