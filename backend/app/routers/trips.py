@@ -36,10 +36,10 @@ def update_trip_endpoint(
 ):
     trip = get_trip(db, trip_id)
     if not trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
+        raise HTTPException(status_code=404, detail="Chuyến đi không tồn tại")
         
     if trip.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this trip")
+        raise HTTPException(status_code=403, detail="Bạn không có quyền cập nhật chuyến đi này")
 
     updated_trip = update_trip(db, trip_id=trip_id, trip_update=trip_in)
     

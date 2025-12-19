@@ -17,7 +17,7 @@ class TripCreate(BaseModel):
     def _validate_date_range(cls, end_date: Optional[date], values):
         start_date = values.get("start_date")
         if start_date and end_date and end_date < start_date:
-            raise ValueError("end_date must be greater than or equal to start_date")
+            raise ValueError("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu")
         return end_date
 
 class TripRead(BaseModel):
