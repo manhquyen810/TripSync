@@ -11,14 +11,14 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Invalid auth credentials"
+            detail="Thông tin xác thực không hợp lệ"
         )
     
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Invalid token payload"
+            detail="Dữ liệu token không hợp lệ"
         )
     
     from app.models.user import User

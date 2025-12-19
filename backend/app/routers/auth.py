@@ -15,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
     existing = get_user_by_email(db, user_in.email)
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Email đã được đăng ký")
     
     user = create_user(db, user=user_in) 
     
