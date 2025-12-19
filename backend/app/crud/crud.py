@@ -115,7 +115,7 @@ def join_trip_by_code(db: Session, invite_code: str, user_id: int):
 def create_itinerary_day(db: Session, trip_id: int, day_number: int):
     trip = db.query(models.trip.Trip).filter(models.trip.Trip.id == trip_id).first()
     if not trip:
-        return ValueError("Chuyến đi không tồn tại")
+        raise ValueError("Chuyến đi không tồn tại")
     
     if trip.start_date and trip.end_date:
         total_days = (trip.end_date - trip.start_date).days + 1

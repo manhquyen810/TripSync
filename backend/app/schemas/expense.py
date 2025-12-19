@@ -1,17 +1,24 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+from typing import Literal, Optional, TypeAlias
+
+from pydantic import BaseModel, Field, PositiveFloat, conint, conlist, constr
+
+TripId: TypeAlias = conint(gt=0)
+UserId: TypeAlias = conint(gt=0)
+CurrencyCode: TypeAlias = constr(strip_whitespace=True, regex=r"^[A-Z]{3}$")
+DescriptionStr: TypeAlias = constr(strip_whitespace=True, max_length=500)
+InvolvedUserIds: TypeAlias = conlist(UserId, min_items=1)
 
 # --- Expense Schemas ---
 class ExpenseCreate(BaseModel):
-    trip_id: int
-    amount: float
-    currency: str = "VND"
-    description: Optional[str] = None
-    split_method: str = "equal"
-    expense_date: Optional[datetime] = None
+    trip_id: TripId
+    amount: PositiveFloat
+    currency: CurrencyCode = "VND"
+    description: Optional[DescriptionStr] = None
+    split_method: Literal["equal"] = "equal"
+    expense_date: datetime = Field(default_factory=datetime.utcnow)
 
-    involved_user_ids: List[int] # Danh sách user_id tham gia chia sẻ chi phí
+    involved_user_ids: InvolvedUserIds
 
 class ExpenseRead(BaseModel):
     id: int
@@ -21,16 +28,16 @@ class ExpenseRead(BaseModel):
     currency: str
     description: Optional[str] = None
     split_method: str
-    expense_date: Optional[datetime]
+    expense_date: datetime
 
     class Config:
         orm_mode = True
 
 # --- Settlement Schemas (Mới) ---
 class SettlementCreate(BaseModel):
-    trip_id: int
-    receiver_id: int
-    amount: float
+    trip_id: TripId
+    receiver_id: UserId
+    amount: PositiveFloat
 
 class SettlementRead(BaseModel):
     id: int
