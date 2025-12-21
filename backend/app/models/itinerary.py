@@ -14,6 +14,7 @@ class Activity(Base):
     __tablename__ = "activities"
     id = Column(Integer, primary_key=True, index=True)
     day_id = Column(Integer, ForeignKey("itinerary_days.id"), nullable=False)
+    create_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     location = Column(String, nullable=True)
