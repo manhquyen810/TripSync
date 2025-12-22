@@ -1,9 +1,23 @@
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:123@localhost:5432/tripsync")
-SECRET_KEY = os.getenv("SECRET_KEY", "affd69472cda8d2b05c0b6c1fe7f9daffee1ed3dfe1b4af079cba8d37d633935")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "43200"))
+_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(dotenv_path=_ENV_PATH, override=False)
+
+
+def _require_env(name: str) -> str:
+	value = os.getenv(name)
+	if value is None or not str(value).strip():
+		raise RuntimeError(f"Missing required environment variable: {name}")
+	return value
+
+
+DATABASE_URL = _require_env("DATABASE_URL")
+SECRET_KEY = _require_env("SECRET_KEY")
+
+_expire_raw = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "43200")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(_expire_raw.split("#", 1)[0].strip())
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")

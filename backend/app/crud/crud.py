@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app import models
 from app.schemas import user as user_schema
 from app.schemas import trip as trip_schema
@@ -47,7 +47,7 @@ def create_trip(db: Session, trip: trip_schema.TripCreate, user_id: int):
     member = models.trip.TripMember(trip_id=db_trip.id, user_id=user_id, role="owner")
     db.add(member)
     db.commit()
-    
+
     return db_trip
 
 def get_trip(db: Session, trip_id: int):
@@ -134,7 +134,7 @@ def add_member_to_trip(db: Session, trip_id: int, user_email: str):
 def create_itinerary_day(db: Session, trip_id: int, day_number: int):
     trip = db.query(models.trip.Trip).filter(models.trip.Trip.id == trip_id).first()
     if not trip:
-        return ValueError("Chuyến đi không tồn tại")
+        raise ValueError("Chuyến đi không tồn tại")
     
     if trip.start_date and trip.end_date:
         total_days = (trip.end_date - trip.start_date).days + 1
@@ -155,7 +155,7 @@ def create_itinerary_day(db: Session, trip_id: int, day_number: int):
 def create_activity(db: Session, activity: itinerary_schema.ActivityCreate, user_id: int):
     db_activity = models.itinerary.Activity(
         day_id=activity.day_id,
-        create_by=user_id,
+        created_by=user_id,
         title=activity.title,
         description=activity.description,
         location=activity.location,
@@ -227,6 +227,14 @@ def get_itinerary_for_trip(db: Session, trip_id: int):
             "activities": activities_data
         })
     return result
+
+def get_activities_by_trip_and_day_number(db: Session, trip_id: int, day_number: int):
+    return db.query(models.itinerary.Activity)\
+             .join(models.itinerary.ItineraryDay, models.itinerary.Activity.day_id == models.itinerary.ItineraryDay.id)\
+             .filter(models.itinerary.ItineraryDay.trip_id == trip_id)\
+             .filter(models.itinerary.ItineraryDay.day_number == day_number)\
+             .order_by(models.itinerary.Activity.start_time.asc())\
+             .all()
 
 # --- EXPENSES ---
 def create_expense(db: Session, expense: expense_schema.ExpenseCreate, user_id: int):
