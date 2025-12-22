@@ -15,13 +15,25 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload", response_model=ApiResponse)
 async def upload(trip_id: int, category: str | None = None, file: UploadFile = File(...), db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    ext = os.path.splitext(file.filename)[1]
+    # Validate file size (max 10MB)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(400, "File quá lớn. Kích thước tối đa là 10MB")
+    
+    # Validate file type
+    allowed_extensions = {'.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.txt'}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_extensions:
+        raise HTTPException(400, f"Định dạng file không được hỗ trợ. Chỉ cho phép: {', '.join(allowed_extensions)}")
+    
+    # Save file
     name = f"{uuid4().hex}{ext}"
     path = os.path.join(UPLOAD_DIR, name)
     with open(path, "wb") as f:
-        content = await file.read()
         f.write(content)
-    url = f"/uploads/{name}"  # static mount in main
+    
+    url = f"/uploads/{name}"
     doc = create_document(db, trip_id=trip_id, uploader_id=current_user.id, filename=file.filename, url=url, category=category)
     return ApiResponse(message="Tải lên thành công", data=doc)
 
@@ -29,3 +41,26 @@ async def upload(trip_id: int, category: str | None = None, file: UploadFile = F
 def list_docs(trip_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     docs = list_documents_for_trip(db, trip_id)
     return ApiResponse(message="Danh sách tài liệu", data=docs)
+
+@router.get("/{document_id}", response_model=ApiResponse)
+def get_document(document_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    from app.crud.crud import get_document_by_id
+    document = get_document_by_id(db, document_id)
+    if not document:
+        raise HTTPException(404, "Tài liệu không tồn tại")
+    return ApiResponse(message="Chi tiết tài liệu", data=document)
+
+@router.delete("/{document_id}", response_model=ApiResponse)
+def delete_document_endpoint(document_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    from app.crud.crud import delete_document
+    from app.models.document import Document
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(404, "Tài liệu không tồn tại")
+    if document.uploader_id != current_user.id:
+        raise HTTPException(403, "Chỉ người upload mới có thể xóa tài liệu")
+    # Delete file from filesystem
+    if os.path.exists(os.path.join(UPLOAD_DIR, os.path.basename(document.url))):
+        os.remove(os.path.join(UPLOAD_DIR, os.path.basename(document.url)))
+    delete_document(db, document_id)
+    return ApiResponse(message="Xóa tài liệu thành công", data=None)

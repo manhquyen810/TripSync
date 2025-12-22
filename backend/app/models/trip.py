@@ -26,6 +26,8 @@ class Trip(Base):
     documents = relationship("Document", back_populates="trip", cascade="all, delete-orphan")
     
     checklist_items = relationship("ChecklistItem", back_populates="trip", cascade="all, delete-orphan")
+    
+    exchange_rates = relationship("ExchangeRate", back_populates="trip", cascade="all, delete-orphan")
 # Class TripMember giữ nguyên
 class TripMember(Base):
     __tablename__ = "trip_members"
