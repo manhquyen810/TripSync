@@ -31,6 +31,40 @@ def authenticate_user(db: Session, email: str, password: str):
         return None
     return user
 
+def update_user_otp(db: Session, email: str, otp_code: str, otp_expires_at):
+    """Update user's OTP code and expiration time"""
+    user = get_user_by_email(db, email)
+    if user:
+        user.otp_code = otp_code
+        user.otp_expires_at = otp_expires_at
+        db.commit()
+        db.refresh(user)
+    return user
+
+def verify_user_otp(db: Session, email: str, otp_code: str):
+    """Verify OTP code and check if it's still valid"""
+    from datetime import datetime, timezone
+    
+    user = get_user_by_email(db, email)
+    if not user or not user.otp_code or not user.otp_expires_at:
+        return None
+    
+    # Check if OTP matches and hasn't expired
+    if user.otp_code == otp_code and user.otp_expires_at > datetime.now(timezone.utc):
+        return user
+    return None
+
+def reset_user_password(db: Session, email: str, new_password: str):
+    """Reset user password and clear OTP"""
+    user = get_user_by_email(db, email)
+    if user:
+        user.hashed_password = get_password_hash(new_password)
+        user.otp_code = None
+        user.otp_expires_at = None
+        db.commit()
+        db.refresh(user)
+    return user
+
 # --- TRIPS ---
 def create_trip(db: Session, trip: trip_schema.TripCreate, user_id: int):
     db_trip = models.trip.Trip(
