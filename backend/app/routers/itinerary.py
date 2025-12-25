@@ -65,7 +65,7 @@ def update_activity_endpoint(activity_id: int, activity_data: ActivityCreate, db
     activity = get_activity_by_id(db, activity_id)
     if not activity:
         raise HTTPException(404, "Hoạt động không tồn tại")
-    if activity.create_by != current_user.id:
+    if activity.created_by != current_user.id:
         raise HTTPException(403, "Chỉ người tạo mới có thể sửa hoạt động")
     updated = update_activity(db, activity_id, activity_data)
     return ApiResponse(message="Cập nhật hoạt động thành công", data=updated)
@@ -77,7 +77,7 @@ def delete_activity_endpoint(activity_id: int, db: Session = Depends(get_db), cu
     activity = db.query(Activity).filter(Activity.id == activity_id).first()
     if not activity:
         raise HTTPException(404, "Hoạt động không tồn tại")
-    if activity.create_by != current_user.id:
+    if activity.created_by != current_user.id:
         raise HTTPException(403, "Chỉ người tạo mới có thể xóa hoạt động")
     delete_activity(db, activity_id)
     return ApiResponse(message="Xóa hoạt động thành công", data=None)

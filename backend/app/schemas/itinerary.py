@@ -15,7 +15,7 @@ class ActivityCreate(BaseModel):
 class ActivityRead(BaseModel):
     id: int
     day_id: int
-    create_by: int
+    created_by: int
     title: str
     description: Optional[str] = None
     location: Optional[str] = None
