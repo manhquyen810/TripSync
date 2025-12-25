@@ -11,6 +11,10 @@ class User(Base):
     avatar_url = Column(String, nullable=True) 
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # OTP fields for password reset
+    otp_code = Column(String, nullable=True)
+    otp_expires_at = Column(DateTime(timezone=True), nullable=True)
 
     trips = relationship("Trip", back_populates="members", secondary="trip_members")
     expenses_paid = relationship("Expense", back_populates="payer")
