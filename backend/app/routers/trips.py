@@ -20,19 +20,22 @@ router = APIRouter(prefix="/trips", tags=["trips"])
 @router.post("", response_model=ApiResponse)
 def create(trip_in: TripCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     trip = create_trip(db, trip=trip_in, user_id=current_user.id)
-    return ApiResponse(message="Tạo chuyến đi thành công", data=trip)
+    return ApiResponse(message="Tạo chuyến đi thành công", data=TripRead.from_orm(trip))
 
 @router.get("", response_model=ApiResponse)
 def list_trips(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     trips = list_trips_for_user(db, current_user.id)
-    return ApiResponse(message="Danh sách chuyến đi", data=trips)
+    return ApiResponse(
+        message="Danh sách chuyến đi",
+        data=[TripRead.from_orm(t) for t in trips],
+    )
 
 @router.get("/{trip_id}", response_model=ApiResponse)
 def get_trip_detail(trip_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     trip = get_trip(db, trip_id)
     if not trip:
         raise HTTPException(404, "Chuyến đi không tồn tại")
-    return ApiResponse(message="Chi tiết chuyến đi", data=trip)
+    return ApiResponse(message="Chi tiết chuyến đi", data=TripRead.from_orm(trip))
 
 @router.put("/{trip_id}", response_model=TripRead)
 def update_trip_endpoint(
@@ -60,7 +63,7 @@ def join_trip(join_data: JoinTripCode, db: Session = Depends(get_db), current_us
     trip = join_trip_by_code(db, invite_code=join_data.invite_code, user_id=current_user.id)
     if not trip:
         raise HTTPException(404, "Mã mời không hợp lệ hoặc bạn đã tham gia chuyến đi này")
-    return ApiResponse(message="Tham gia chuyến đi thành công", data=trip)
+    return ApiResponse(message="Tham gia chuyến đi thành công", data=TripRead.from_orm(trip))
 
 class AddMemberRequest(BaseModel):
     user_email: EmailStr
