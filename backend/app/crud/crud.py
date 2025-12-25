@@ -7,6 +7,7 @@ from app.schemas import expense as expense_schema
 from app.core.security import get_password_hash, verify_password
 from typing import Optional
 from datetime import date
+from sqlalchemy.exc import SQLAlchemyError
 
 # --- USERS ---
 def get_user_by_email(db: Session, email: str):
@@ -100,6 +101,7 @@ def create_trip(db: Session, trip: trip_schema.TripCreate, user_id: int):
         "base_currency": trip.base_currency,
         "destination": trip.destination,
         "description": trip.description,
+        "cover_image_url": getattr(trip, "cover_image_url", None),
     }
     if trip.invite_code is not None:
         trip_kwargs["invite_code"] = trip.invite_code
@@ -133,6 +135,8 @@ def update_trip(db: Session, trip_id: int, trip_update: trip_schema.TripUpdate):
         db_trip.destination = update_data["destination"]
     if "description" in update_data:
         db_trip.description = update_data["description"]
+    if "cover_image_url" in update_data:
+        db_trip.cover_image_url = update_data["cover_image_url"]
     if "start_date" in update_data:
         db_trip.start_date = update_data["start_date"]
     if "end_date" in update_data:
@@ -387,10 +391,35 @@ def toggle_checklist_item(db: Session, item_id: int, is_done: bool):
 # --- DELETE OPERATIONS ---
 def delete_trip(db: Session, trip_id: int):
     trip = db.query(models.trip.Trip).filter(models.trip.Trip.id == trip_id).first()
-    if trip:
+    if not trip:
+        return None
+
+    try:
+        activity_ids_subq = (
+            db.query(models.itinerary.Activity.id)
+            .join(models.itinerary.ItineraryDay, models.itinerary.Activity.day_id == models.itinerary.ItineraryDay.id)
+            .filter(models.itinerary.ItineraryDay.trip_id == trip_id)
+            .subquery()
+        )
+
+        db.query(models.itinerary.ActivityVote).filter(
+            models.itinerary.ActivityVote.activity_id.in_(activity_ids_subq)
+        ).delete(synchronize_session=False)
+
+        db.query(models.trip.TripMember).filter(
+            models.trip.TripMember.trip_id == trip_id
+        ).delete(synchronize_session=False)
+
+        db.query(models.expense.Settlement).filter(
+            models.expense.Settlement.trip_id == trip_id
+        ).delete(synchronize_session=False)
+
         db.delete(trip)
         db.commit()
-    return trip
+        return trip
+    except SQLAlchemyError:
+        db.rollback()
+        raise
 
 def delete_activity(db: Session, activity_id: int):
     activity = db.query(models.itinerary.Activity).filter(models.itinerary.Activity.id == activity_id).first()

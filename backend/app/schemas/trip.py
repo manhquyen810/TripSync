@@ -6,6 +6,7 @@ class TripCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     destination: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, min_length=1, max_length=2000)
+    cover_image_url: Optional[str] = Field(None, max_length=2048)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     base_currency: str = Field("VND", regex=r"^[A-Z]{3}$")
@@ -23,6 +24,7 @@ class TripUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     destination: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, min_length=1, max_length=2000)
+    cover_image_url: Optional[str] = Field(None, max_length=2048)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     base_currency: Optional[str] = Field(None, regex=r"^[A-Z]{3}$")
@@ -40,6 +42,7 @@ class TripRead(BaseModel):
     name: str
     destination: Optional[str] = None
     description: Optional[str] = None
+    cover_image_url: Optional[str] = None
     owner_id: int
     start_date: Optional[date] = None
     end_date: Optional[date] = None
