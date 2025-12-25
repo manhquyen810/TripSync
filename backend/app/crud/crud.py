@@ -6,6 +6,7 @@ from app.schemas import itinerary as itinerary_schema
 from app.schemas import expense as expense_schema
 from app.core.security import get_password_hash, verify_password
 from typing import Optional
+from datetime import date
 
 # --- USERS ---
 def get_user_by_email(db: Session, email: str):
@@ -32,16 +33,49 @@ def authenticate_user(db: Session, email: str, password: str):
     return user
 
 # --- TRIPS ---
+def _sync_itinerary_days_for_range(db: Session, trip_id: int, start_date: Optional[date], end_date: Optional[date]):
+    if not start_date or not end_date:
+        return
+
+    total_days = (end_date - start_date).days + 1
+    if total_days <= 0:
+        return
+
+    existing_days = db.query(models.itinerary.ItineraryDay).filter(
+        models.itinerary.ItineraryDay.trip_id == trip_id
+    ).all()
+    existing_numbers = {d.day_number for d in existing_days}
+
+    for i in range(1, total_days + 1):
+        if i not in existing_numbers:
+            db.add(models.itinerary.ItineraryDay(trip_id=trip_id, day_number=i))
+
+    for d in existing_days:
+        if d.day_number > total_days:
+            db.delete(d)
+
+    db.commit()
+
+
 def create_trip(db: Session, trip: trip_schema.TripCreate, user_id: int):
-    db_trip = models.trip.Trip(
-        name=trip.name,
-        owner_id=user_id,
-        start_date=trip.start_date, 
-        end_date=trip.end_date      
-    )
+    trip_kwargs = {
+        "name": trip.name,
+        "owner_id": user_id,
+        "start_date": trip.start_date,
+        "end_date": trip.end_date,
+        "base_currency": trip.base_currency,
+        "destination": trip.destination,
+        "description": trip.description,
+    }
+    if trip.invite_code is not None:
+        trip_kwargs["invite_code"] = trip.invite_code
+
+    db_trip = models.trip.Trip(**trip_kwargs)
     db.add(db_trip)
     db.commit()
     db.refresh(db_trip)
+
+    _sync_itinerary_days_for_range(db, trip_id=db_trip.id, start_date=db_trip.start_date, end_date=db_trip.end_date)
     
     # Tự động thêm chủ nhóm vào làm thành viên (Role: Owner)
     member = models.trip.TripMember(trip_id=db_trip.id, user_id=user_id, role="owner")
@@ -53,35 +87,31 @@ def create_trip(db: Session, trip: trip_schema.TripCreate, user_id: int):
 def get_trip(db: Session, trip_id: int):
     return db.query(models.trip.Trip).filter(models.trip.Trip.id == trip_id).first()
 
-def update_trip(db: Session, trip_id: int, trip_update: trip_schema.TripCreate):
+def update_trip(db: Session, trip_id: int, trip_update: trip_schema.TripUpdate):
     db_trip = db.query(models.trip.Trip).filter(models.trip.Trip.id == trip_id).first()
     if not db_trip:
         return None
-    db_trip.name = trip_update.name
-    db_trip.start_date = trip_update.start_date
-    db_trip.end_date = trip_update.end_date
 
-    if hasattr(trip_update, 'base_currency') and trip_update.base_currency:
-        db_trip.base_currency = trip_update.base_currency
-    if hasattr(trip_update, 'invite_code') and trip_update.invite_code:
-        db_trip.invite_code = trip_update.invite_code
+    update_data = trip_update.dict(exclude_unset=True)
+    if "name" in update_data and update_data["name"] is not None:
+        db_trip.name = update_data["name"]
+    if "destination" in update_data:
+        db_trip.destination = update_data["destination"]
+    if "description" in update_data:
+        db_trip.description = update_data["description"]
+    if "start_date" in update_data:
+        db_trip.start_date = update_data["start_date"]
+    if "end_date" in update_data:
+        db_trip.end_date = update_data["end_date"]
+    if "base_currency" in update_data and update_data["base_currency"]:
+        db_trip.base_currency = update_data["base_currency"]
+    if "invite_code" in update_data and update_data["invite_code"]:
+        db_trip.invite_code = update_data["invite_code"]
 
     db.commit()
     db.refresh(db_trip)
-    if db_trip.start_date and db_trip.end_date:
-        total_days = (db_trip.end_date - db_trip.start_date).days + 1
-        
-        for i in range(1, total_days + 1):
-            existing_day = db.query(models.itinerary.ItineraryDay).filter(
-                models.itinerary.ItineraryDay.trip_id == trip_id,
-                models.itinerary.ItineraryDay.day_number == i
-            ).first()
-        
-            if not existing_day:
-                new_day = models.itinerary.ItineraryDay(trip_id=trip_id, day_number=i)
-                db.add(new_day)
-        
-        db.commit()
+
+    _sync_itinerary_days_for_range(db, trip_id=trip_id, start_date=db_trip.start_date, end_date=db_trip.end_date)
 
     return db_trip    
 
