@@ -10,6 +10,7 @@ class Trip(Base):
     name = Column(String, nullable=False)
     destination = Column(String, nullable=True)
     description = Column(Text, nullable=True)
+    cover_image_url = Column(String, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)

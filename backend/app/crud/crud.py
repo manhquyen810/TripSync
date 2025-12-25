@@ -101,6 +101,7 @@ def create_trip(db: Session, trip: trip_schema.TripCreate, user_id: int):
         "base_currency": trip.base_currency,
         "destination": trip.destination,
         "description": trip.description,
+        "cover_image_url": getattr(trip, "cover_image_url", None),
     }
     if trip.invite_code is not None:
         trip_kwargs["invite_code"] = trip.invite_code
@@ -134,6 +135,8 @@ def update_trip(db: Session, trip_id: int, trip_update: trip_schema.TripUpdate):
         db_trip.destination = update_data["destination"]
     if "description" in update_data:
         db_trip.description = update_data["description"]
+    if "cover_image_url" in update_data:
+        db_trip.cover_image_url = update_data["cover_image_url"]
     if "start_date" in update_data:
         db_trip.start_date = update_data["start_date"]
     if "end_date" in update_data:
