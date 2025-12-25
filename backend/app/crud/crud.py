@@ -7,6 +7,7 @@ from app.schemas import expense as expense_schema
 from app.core.security import get_password_hash, verify_password
 from typing import Optional
 from datetime import date
+from sqlalchemy.exc import SQLAlchemyError
 
 # --- USERS ---
 def get_user_by_email(db: Session, email: str):
@@ -387,10 +388,35 @@ def toggle_checklist_item(db: Session, item_id: int, is_done: bool):
 # --- DELETE OPERATIONS ---
 def delete_trip(db: Session, trip_id: int):
     trip = db.query(models.trip.Trip).filter(models.trip.Trip.id == trip_id).first()
-    if trip:
+    if not trip:
+        return None
+
+    try:
+        activity_ids_subq = (
+            db.query(models.itinerary.Activity.id)
+            .join(models.itinerary.ItineraryDay, models.itinerary.Activity.day_id == models.itinerary.ItineraryDay.id)
+            .filter(models.itinerary.ItineraryDay.trip_id == trip_id)
+            .subquery()
+        )
+
+        db.query(models.itinerary.ActivityVote).filter(
+            models.itinerary.ActivityVote.activity_id.in_(activity_ids_subq)
+        ).delete(synchronize_session=False)
+
+        db.query(models.trip.TripMember).filter(
+            models.trip.TripMember.trip_id == trip_id
+        ).delete(synchronize_session=False)
+
+        db.query(models.expense.Settlement).filter(
+            models.expense.Settlement.trip_id == trip_id
+        ).delete(synchronize_session=False)
+
         db.delete(trip)
         db.commit()
-    return trip
+        return trip
+    except SQLAlchemyError:
+        db.rollback()
+        raise
 
 def delete_activity(db: Session, activity_id: int):
     activity = db.query(models.itinerary.Activity).filter(models.itinerary.Activity.id == activity_id).first()
