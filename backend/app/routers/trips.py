@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
+from app.crud.crud import create_trip, list_trips_for_user, get_trip, join_trip_by_code, update_trip
+from app.schemas.trip import TripCreate, TripRead, TripUpdate
 from app.crud.crud import create_trip, list_trips_for_user, get_trip, join_trip_by_code, update_trip, add_member_to_trip
 from app.schemas.trip import TripCreate, TripRead
 from app.schemas.response import ApiResponse
@@ -30,7 +32,7 @@ def get_trip_detail(trip_id: int, db: Session = Depends(get_db), current_user = 
 @router.put("/{trip_id}", response_model=TripRead)
 def update_trip_endpoint(
     trip_id: int, 
-    trip_in: TripCreate, 
+    trip_in: TripUpdate, 
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):

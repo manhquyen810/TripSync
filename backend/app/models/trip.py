@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Date, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base # Sửa dòng này (bỏ dấu chấm)
@@ -8,6 +8,8 @@ class Trip(Base):
     __tablename__ = "trips"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    destination = Column(String, nullable=True)
+    description = Column(Text, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
