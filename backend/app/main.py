@@ -1,11 +1,21 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status
+from fastapi.responses import JSONResponse
 from app.database import engine, Base
 from app.config import UPLOAD_DIR
 import os
 from typing import List, Dict
+import logging
+import traceback
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # --- QUAN TRỌNG: Import TỪNG file model để SQLAlchemy nhận diện và tạo bảng ---
-from app.models import itinerary, user, trip, expense, document, checklist
+from app.models import user, trip, itinerary, expense, document, checklist, exchange_rate
 
 # Import routers
 from app.routers import auth as auth_router
@@ -15,9 +25,11 @@ from app.routers import itinerary as itinerary_router
 from app.routers import expenses as expenses_router
 from app.routers import documents as documents_router
 from app.routers import checklist as checklist_router
+from app.routers import exchange_rates as exchange_rates_router
 
 # --- RESET DATABASE (Dùng cho Dev) ---
 # Cảnh báo: Dòng này sẽ XÓA SẠCH dữ liệu cũ mỗi khi restart server
+# UNCOMMENT CHỈ KHI ĐANG DEV - COMMENT KHI DEPLOY PRODUCTION
 # Base.metadata.drop_all(bind=engine) 
 # -------------------------------------
 
@@ -25,6 +37,27 @@ from app.routers import checklist as checklist_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="TripSync Backend", description="API cho ứng dụng TripSync")
+
+# Global Exception Handler - Log tất cả lỗi
+@app.middleware("http")
+async def log_errors_middleware(request: Request, call_next):
+    try:
+        response = await call_next(request)
+        return response
+    except Exception as exc:
+        logger.error(f"❌ ERROR in {request.method} {request.url.path}")
+        logger.error(f"📋 Error Type: {type(exc).__name__}")
+        logger.error(f"💬 Error Message: {str(exc)}")
+        logger.error(f"🔍 Traceback:\n{traceback.format_exc()}")
+        
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "message": "Internal Server Error",
+                "detail": str(exc),
+                "type": type(exc).__name__
+            }
+        )
 
 # Mount thư mục upload
 if os.path.isdir(UPLOAD_DIR):
@@ -39,6 +72,7 @@ app.include_router(itinerary_router.router)
 app.include_router(expenses_router.router)
 app.include_router(documents_router.router)
 app.include_router(checklist_router.router)
+app.include_router(exchange_rates_router.router)
 
 # --- QUẢN LÝ WEBSOCKET (Đã nâng cấp để chia theo từng Trip) ---
 class ConnectionManager:

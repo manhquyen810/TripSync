@@ -21,3 +21,10 @@ SECRET_KEY = _require_env("SECRET_KEY")
 _expire_raw = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "43200")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(_expire_raw.split("#", 1)[0].strip())
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
+
+# SendGrid Email Configuration
+SENDGRID_API_KEY = _require_env("SENDGRID_API_KEY")
+SENDGRID_FROM_EMAIL = _require_env("SENDGRID_FROM_EMAIL")
+
+# OTP Configuration
+OTP_EXPIRE_MINUTES = int(os.getenv("OTP_EXPIRE_MINUTES", "5"))
