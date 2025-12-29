@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 from app import models
 from app.schemas import user as user_schema
@@ -370,7 +371,16 @@ def create_document(db: Session, trip_id: int, uploader_id: int, filename: str, 
     return d
 
 def list_documents_for_trip(db: Session, trip_id: int):
-    return db.query(models.document.Document).filter(models.document.Document.trip_id == trip_id).all()
+    # Some clients historically uploaded trip cover/avatar through /documents/upload.
+    # Hide those categories by default so the trip documents list stays clean.
+    hidden_categories = {"avatar", "user_avatar", "cover", "trip_cover", "cover_image"}
+    Document = models.document.Document
+    return (
+        db.query(Document)
+        .filter(Document.trip_id == trip_id)
+        .filter(or_(Document.category.is_(None), ~Document.category.in_(hidden_categories)))
+        .all()
+    )
 
 # --- CHECKLIST ---
 def create_checklist_item(db: Session, trip_id: int, content: str, assignee: int | None = None):
