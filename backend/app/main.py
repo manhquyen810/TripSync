@@ -1,7 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.config import UPLOAD_DIR
+from app.config import UPLOAD_DIR, CORS_ORIGINS
 import os
 from typing import List, Dict
 import logging
@@ -37,6 +38,15 @@ from app.routers import exchange_rates as exchange_rates_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="TripSync Backend", description="API cho ứng dụng TripSync")
+
+# CORS is required for Flutter Web to fetch images/files cross-origin.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Global Exception Handler - Log tất cả lỗi
 @app.middleware("http")
