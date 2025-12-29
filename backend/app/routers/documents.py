@@ -20,20 +20,38 @@ import io
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+_AVATAR_CATEGORIES = {"avatar", "user_avatar"}
+_TRIP_COVER_CATEGORIES = {"cover", "trip_cover", "cover_image"}
 
 @router.post("/upload", response_model=ApiResponse)
-async def upload(trip_id: int, category: str | None = None, file: UploadFile = File(...), db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+async def upload(
+    trip_id: int | None = None,
+    category: str | None = None,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     # Validate file size (max 10MB)
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(400, "File quá lớn. Kích thước tối đa là 10MB")
-    
+    normalized_category = (category or "").strip().lower() or None
     # Validate file type
-    allowed_extensions = {'.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.txt'}
-    ext = os.path.splitext(file.filename)[1].lower()
+    if normalized_category in _AVATAR_CATEGORIES or normalized_category in _TRIP_COVER_CATEGORIES:
+        allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    else:
+        allowed_extensions = {".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".txt"}
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in allowed_extensions:
-        raise HTTPException(400, f"Định dạng file không được hỗ trợ. Chỉ cho phép: {', '.join(allowed_extensions)}")
+        raise HTTPException(
+            400,
+            f"Định dạng file không được hỗ trợ. Chỉ cho phép: {', '.join(sorted(allowed_extensions))}",
+        )
+
+    if trip_id is None and normalized_category not in _AVATAR_CATEGORIES:
+        raise HTTPException(400, "Thiếu trip_id")
     
     # Save file (Render free filesystem is ephemeral; prefer Cloudinary)
     url: str
@@ -52,19 +70,31 @@ async def upload(trip_id: int, category: str | None = None, file: UploadFile = F
                     secure=True,
                 )
 
-            folder = "tripsync"
-            if trip_id:
-                folder = f"{folder}/trip_{trip_id}"
-            if category:
-                folder = f"{folder}/{category}"
+            # Route uploads by intent so avatar/cover don't end up as trip documents.
+            if normalized_category in _AVATAR_CATEGORIES:
+                folder = f"tripsync/avatars/user_{current_user.id}"
+                resource_type = "image"
+                overwrite = True
+            elif normalized_category in _TRIP_COVER_CATEGORIES:
+                folder = f"tripsync/trips/trip_{trip_id}/cover"
+                resource_type = "image"
+                overwrite = True
+            else:
+                folder = "tripsync"
+                if trip_id:
+                    folder = f"{folder}/trip_{trip_id}"
+                if normalized_category:
+                    folder = f"{folder}/{normalized_category}"
+                resource_type = "auto"
+                overwrite = False
 
             public_id = uuid4().hex
             upload_result = cloudinary.uploader.upload(
                 io.BytesIO(content),
-                resource_type="auto",
+                resource_type=resource_type,
                 folder=folder,
                 public_id=public_id,
-                overwrite=False,
+                overwrite=overwrite,
             )
 
             secure_url = upload_result.get("secure_url")
@@ -74,13 +104,49 @@ async def upload(trip_id: int, category: str | None = None, file: UploadFile = F
         except Exception as e:
             raise HTTPException(500, f"Upload Cloudinary thất bại: {e}")
     else:
-        name = f"{uuid4().hex}{ext}"
+        if normalized_category in _AVATAR_CATEGORIES:
+            name = f"avatar_{current_user.id}_{uuid4().hex}{ext}"
+        elif normalized_category in _TRIP_COVER_CATEGORIES:
+            name = f"trip_{trip_id}_cover_{uuid4().hex}{ext}"
+        else:
+            name = f"{uuid4().hex}{ext}"
         path = os.path.join(UPLOAD_DIR, name)
         with open(path, "wb") as f:
             f.write(content)
 
         url = f"/uploads/{name}"
-    doc = create_document(db, trip_id=trip_id, uploader_id=current_user.id, filename=file.filename, url=url, category=category)
+
+    # Persist depending on category
+    if normalized_category in _AVATAR_CATEGORIES:
+        from app.crud.crud import update_user_profile
+
+        updated_user = update_user_profile(db, current_user.id, current_user.name, url)
+        if not updated_user:
+            raise HTTPException(404, "Người dùng không tồn tại")
+        return ApiResponse(message="Tải avatar thành công", data={"url": url})
+
+    if normalized_category in _TRIP_COVER_CATEGORIES:
+        from app.crud.crud import get_trip
+
+        trip = get_trip(db, trip_id)
+        if not trip:
+            raise HTTPException(404, "Chuyến đi không tồn tại")
+        if trip.owner_id != current_user.id:
+            raise HTTPException(403, "Chỉ chủ nhóm mới có thể cập nhật ảnh bìa")
+
+        trip.cover_image_url = url
+        db.commit()
+        db.refresh(trip)
+        return ApiResponse(message="Cập nhật ảnh bìa thành công", data={"url": url})
+
+    doc = create_document(
+        db,
+        trip_id=trip_id,
+        uploader_id=current_user.id,
+        filename=file.filename or "",
+        url=url,
+        category=normalized_category,
+    )
     return ApiResponse(message="Tải lên thành công", data=doc)
 
 @router.get("/trip/{trip_id}", response_model=ApiResponse)
