@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, PositiveFloat, conint, conlist, constr
 
 TripId: TypeAlias = conint(gt=0)
 UserId: TypeAlias = conint(gt=0)
-CurrencyCode: TypeAlias = constr(strip_whitespace=True, pattern=r"^[A-Z]{3}$")
+CurrencyCode: TypeAlias = constr(strip_whitespace=True, regex=r"^[A-Z]{3}$")
 DescriptionStr: TypeAlias = constr(strip_whitespace=True, max_length=500)
 InvolvedUserIds: TypeAlias = conlist(UserId, min_length=1)
 
