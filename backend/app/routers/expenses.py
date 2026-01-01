@@ -12,7 +12,9 @@ router = APIRouter(prefix="/expenses", tags=["expenses"])
 @router.post("", response_model=ApiResponse)
 def add_expense(e: ExpenseCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     try:
-        ex = create_expense(db, expense=e, user_id=current_user.id)
+        # Sử dụng payer_id từ request, nếu không có thì dùng current_user
+        payer_id = e.payer_id if e.payer_id is not None else current_user.id
+        ex = create_expense(db, expense=e, user_id=payer_id)
         return ApiResponse(message="Thêm chi tiêu thành công", data=ex)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))

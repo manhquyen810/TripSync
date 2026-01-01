@@ -12,6 +12,7 @@ InvolvedUserIds: TypeAlias = conlist(UserId, min_items=1)
 # --- Expense Schemas ---
 class ExpenseCreate(BaseModel):
     trip_id: TripId
+    payer_id: Optional[UserId] = None  # Người trả tiền, nếu không có thì dùng current_user
     amount: PositiveFloat
     currency: CurrencyCode = "VND"
     description: Optional[DescriptionStr] = None
