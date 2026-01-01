@@ -19,4 +19,4 @@ class UserRead(BaseModel):
     is_active: bool
 
     class Config:
-        from_attributes = True
+        orm_mode = True

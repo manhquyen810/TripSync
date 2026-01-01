@@ -7,7 +7,7 @@ TripId: TypeAlias = conint(gt=0)
 UserId: TypeAlias = conint(gt=0)
 CurrencyCode: TypeAlias = constr(strip_whitespace=True, regex=r"^[A-Z]{3}$")
 DescriptionStr: TypeAlias = constr(strip_whitespace=True, max_length=500)
-InvolvedUserIds: TypeAlias = conlist(UserId, min_length=1)
+InvolvedUserIds: TypeAlias = conlist(UserId, min_items=1)
 
 # --- Expense Schemas ---
 class ExpenseCreate(BaseModel):
@@ -31,7 +31,7 @@ class ExpenseRead(BaseModel):
     expense_date: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # --- Nested schemas for detailed response ---
 class UserBasic(BaseModel):
@@ -40,7 +40,7 @@ class UserBasic(BaseModel):
     avatar_url: Optional[str] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class ExpenseSplitRead(BaseModel):
     user_id: int
@@ -48,7 +48,7 @@ class ExpenseSplitRead(BaseModel):
     user: UserBasic
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class ExpenseDetailRead(BaseModel):
     id: int
@@ -64,7 +64,7 @@ class ExpenseDetailRead(BaseModel):
     splits: list[ExpenseSplitRead]
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # --- Settlement Schemas (Mới) ---
 class SettlementCreate(BaseModel):
@@ -81,4 +81,4 @@ class SettlementRead(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
