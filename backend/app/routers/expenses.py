@@ -19,7 +19,14 @@ def add_expense(e: ExpenseCreate, db: Session = Depends(get_db), current_user = 
 
 @router.get("/trip/{trip_id}", response_model=ApiResponse)
 def get_expenses(trip_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    expenses = list_expenses_for_trip(db, trip_id)
+    from sqlalchemy.orm import joinedload
+    from app.models.expense import Expense, ExpenseSplit
+    
+    expenses = db.query(Expense).filter(Expense.trip_id == trip_id).options(
+        joinedload(Expense.payer),
+        joinedload(Expense.splits).joinedload(ExpenseSplit.user)
+    ).all()
+    
     return ApiResponse(message="Danh sách chi tiêu", data=expenses)
 
 @router.get("/trip/{trip_id}/balances", response_model=ApiResponse)
