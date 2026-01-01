@@ -307,6 +307,14 @@ def get_activities_by_trip_and_day_number(db: Session, trip_id: int, day_number:
 
 # --- EXPENSES ---
 def create_expense(db: Session, expense: expense_schema.ExpenseCreate, user_id: int):
+    # Validate: Check if payer is a member of the trip
+    is_payer_member = db.query(models.trip.TripMember).filter(
+        models.trip.TripMember.trip_id == expense.trip_id,
+        models.trip.TripMember.user_id == user_id
+    ).first()
+    if not is_payer_member:
+        raise ValueError(f"Người trả tiền (ID {user_id}) không phải là thành viên của chuyến đi này")
+    
     # Validate: Check if all involved users are members of the trip
     if expense.involved_user_ids:
         for member_id in expense.involved_user_ids:
