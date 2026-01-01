@@ -9,7 +9,7 @@ class TripCreate(BaseModel):
     cover_image_url: Optional[str] = Field(None, max_length=2048)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    base_currency: str = Field("VND", regex=r"^[A-Z]{3}$")
+    base_currency: str = Field("VND", pattern=r"^[A-Z]{3}$")
     invite_code: Optional[str] = Field(None, min_length=1, max_length=64)
 
     @validator("end_date")
@@ -27,7 +27,7 @@ class TripUpdate(BaseModel):
     cover_image_url: Optional[str] = Field(None, max_length=2048)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    base_currency: Optional[str] = Field(None, regex=r"^[A-Z]{3}$")
+    base_currency: Optional[str] = Field(None, pattern=r"^[A-Z]{3}$")
     invite_code: Optional[str] = Field(None, min_length=1, max_length=64)
 
     @validator("end_date")
@@ -50,4 +50,4 @@ class TripRead(BaseModel):
     invite_code: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True

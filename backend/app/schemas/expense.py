@@ -5,9 +5,9 @@ from pydantic import BaseModel, Field, PositiveFloat, conint, conlist, constr
 
 TripId: TypeAlias = conint(gt=0)
 UserId: TypeAlias = conint(gt=0)
-CurrencyCode: TypeAlias = constr(strip_whitespace=True, regex=r"^[A-Z]{3}$")
+CurrencyCode: TypeAlias = constr(strip_whitespace=True, pattern=r"^[A-Z]{3}$")
 DescriptionStr: TypeAlias = constr(strip_whitespace=True, max_length=500)
-InvolvedUserIds: TypeAlias = conlist(UserId, min_items=1)
+InvolvedUserIds: TypeAlias = conlist(UserId, min_length=1)
 
 # --- Expense Schemas ---
 class ExpenseCreate(BaseModel):
@@ -31,7 +31,40 @@ class ExpenseRead(BaseModel):
     expense_date: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+# --- Nested schemas for detailed response ---
+class UserBasic(BaseModel):
+    id: int
+    name: str
+    avatar_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class ExpenseSplitRead(BaseModel):
+    user_id: int
+    amount_owed: float
+    user: UserBasic
+
+    class Config:
+        from_attributes = True
+
+class ExpenseDetailRead(BaseModel):
+    id: int
+    trip_id: int
+    payer_id: int
+    amount: float
+    currency: str
+    description: Optional[str] = None
+    split_method: str
+    expense_date: datetime
+    created_at: datetime
+    payer: UserBasic
+    splits: list[ExpenseSplitRead]
+
+    class Config:
+        from_attributes = True
 
 # --- Settlement Schemas (Mới) ---
 class SettlementCreate(BaseModel):
@@ -48,4 +81,4 @@ class SettlementRead(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
