@@ -316,6 +316,7 @@ def create_expense(db: Session, expense: expense_schema.ExpenseCreate, user_id: 
             if not is_member:
                 raise ValueError(f"User ID {member_id} không phải là thành viên của chuyến đi này")
     
+    # Tạo expense record
     db_expense = models.expense.Expense(
         trip_id=expense.trip_id,
         payer_id=user_id,
@@ -326,8 +327,12 @@ def create_expense(db: Session, expense: expense_schema.ExpenseCreate, user_id: 
         expense_date=expense.expense_date
     )
     db.add(db_expense)
-    db.commit()
-    db.refresh(db_expense)
+    
+    # Flush để gán ID cho expense (cần ID để tạo splits), nhưng CHƯA lưu vào DB
+    # Nếu có lỗi ở bước sau, toàn bộ transaction sẽ bị rollback
+    db.flush()
+    
+    # Tạo expense splits (chia tiền cho từng người)
     if expense.involved_user_ids:
         num_people = len(expense.involved_user_ids)
         split_amount = expense.amount / num_people
@@ -339,7 +344,11 @@ def create_expense(db: Session, expense: expense_schema.ExpenseCreate, user_id: 
                 amount_owed=split_amount
             )
             db.add(split)
-        db.commit()
+    
+    # Commit tất cả cùng lúc (expense + splits) để đảm bảo tính toàn vẹn dữ liệu
+    # Nếu tạo splits bị lỗi, expense cũng sẽ không được lưu
+    db.commit()
+    db.refresh(db_expense)
     return db_expense
 
 def list_expenses_for_trip(db: Session, trip_id: int):
