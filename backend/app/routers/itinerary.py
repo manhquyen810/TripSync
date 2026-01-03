@@ -39,7 +39,12 @@ def vote(activity_id: int, vote_type: str = "upvote", db: Session = Depends(get_
 
 
 @router.get("/trips/{trip_id}/days/{day_number}/activities", response_model=ApiResponse)
-def list_activities_by_day_number(trip_id: int, day_number: int, db: Session = Depends(get_db)):
+def list_activities_by_day_number(
+    trip_id: int,
+    day_number: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
     activities = get_activities_by_trip_and_day_number(db, trip_id=trip_id, day_number=day_number)
     return ApiResponse(message=f"Danh sách hoạt động ngày {day_number}", data=activities)
 
