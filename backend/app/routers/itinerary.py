@@ -34,7 +34,14 @@ def add_activity(a: ActivityCreate, db: Session = Depends(get_db), current_user 
 
 @router.post("/activities/{activity_id}/vote", response_model=ApiResponse)
 def vote(activity_id: int, vote_type: str = "upvote", db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    v = vote_activity(db, activity_id=activity_id, user_id=current_user.id, vote=vote_type)
+    try:
+        v = vote_activity(db, activity_id=activity_id, user_id=current_user.id, vote=vote_type)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+    if v is None:
+        return ApiResponse(message="Đã hủy bình chọn", data={"vote_id": None, "type": None})
+
     return ApiResponse(message="Bình chọn thành công", data={"vote_id": v.id, "type": v.vote})
 
 
@@ -45,7 +52,12 @@ def list_activities_by_day_number(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
-    activities = get_activities_by_trip_and_day_number(db, trip_id=trip_id, day_number=day_number)
+    activities = get_activities_by_trip_and_day_number(
+        db,
+        trip_id=trip_id,
+        day_number=day_number,
+        current_user_id=current_user.id,
+    )
     return ApiResponse(message=f"Danh sách hoạt động ngày {day_number}", data=activities)
 
 @router.post("/activities/{activity_id}/confirm", response_model=ApiResponse)
