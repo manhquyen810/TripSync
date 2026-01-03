@@ -298,12 +298,71 @@ def get_itinerary_for_trip(db: Session, trip_id: int):
     return result
 
 def get_activities_by_trip_and_day_number(db: Session, trip_id: int, day_number: int):
-    return db.query(models.itinerary.Activity)\
-             .join(models.itinerary.ItineraryDay, models.itinerary.Activity.day_id == models.itinerary.ItineraryDay.id)\
-             .filter(models.itinerary.ItineraryDay.trip_id == trip_id)\
-             .filter(models.itinerary.ItineraryDay.day_number == day_number)\
-             .order_by(models.itinerary.Activity.start_time.asc())\
-             .all()
+    activities = (
+        db.query(models.itinerary.Activity)
+        .join(
+            models.itinerary.ItineraryDay,
+            models.itinerary.Activity.day_id == models.itinerary.ItineraryDay.id,
+        )
+        .filter(models.itinerary.ItineraryDay.trip_id == trip_id)
+        .filter(models.itinerary.ItineraryDay.day_number == day_number)
+        .order_by(models.itinerary.Activity.start_time.asc())
+        .all()
+    )
+
+    user_ids = {a.created_by for a in activities if a.created_by is not None}
+    user_name_by_id: dict[int, str] = {}
+    if user_ids:
+        users = (
+            db.query(models.user.User)
+            .filter(models.user.User.id.in_(user_ids))
+            .all()
+        )
+        user_name_by_id = {u.id: (u.name or "").strip() for u in users}
+
+    result = []
+    for activity in activities:
+        upvotes = (
+            db.query(models.itinerary.ActivityVote)
+            .filter(models.itinerary.ActivityVote.activity_id == activity.id)
+            .filter(models.itinerary.ActivityVote.vote == "upvote")
+            .count()
+        )
+        downvotes = (
+            db.query(models.itinerary.ActivityVote)
+            .filter(models.itinerary.ActivityVote.activity_id == activity.id)
+            .filter(models.itinerary.ActivityVote.vote == "downvote")
+            .count()
+        )
+
+        start_time = ""
+        if activity.start_time is not None:
+            try:
+                start_time = activity.start_time.strftime("%H:%M")
+            except Exception:
+                start_time = str(activity.start_time)
+
+        created_by_name = ""
+        if activity.created_by is not None:
+            created_by_name = user_name_by_id.get(activity.created_by, "")
+
+        result.append(
+            {
+                "id": activity.id,
+                "day_id": activity.day_id,
+                "title": activity.title,
+                "description": activity.description,
+                "location": activity.location,
+                "start_time": start_time,
+                "is_confirmed": activity.is_confirmed,
+                "created_by": activity.created_by,
+                "created_by_name": created_by_name,
+                "upvotes": upvotes,
+                "total_votes": upvotes + downvotes,
+            }
+        )
+
+    return result
 
 # --- EXPENSES ---
 def create_expense(db: Session, expense: expense_schema.ExpenseCreate, user_id: int):
