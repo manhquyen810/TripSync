@@ -238,12 +238,21 @@ def create_activity(db: Session, activity: itinerary_schema.ActivityCreate, user
     return db_activity
 
 def vote_activity(db: Session, activity_id: int, user_id: int, vote: str = "upvote"):
+    if vote not in ("upvote", "downvote"):
+        raise ValueError("vote_type phải là upvote hoặc downvote")
+
     existing = db.query(models.itinerary.ActivityVote).filter(
         models.itinerary.ActivityVote.activity_id == activity_id,
         models.itinerary.ActivityVote.user_id == user_id
     ).first()
     
     if existing:
+        # Toggle off when tapping the same vote again.
+        if existing.vote == vote:
+            db.delete(existing)
+            db.commit()
+            return None
+
         existing.vote = vote
         db.commit()
         db.refresh(existing)
@@ -297,7 +306,12 @@ def get_itinerary_for_trip(db: Session, trip_id: int):
         })
     return result
 
-def get_activities_by_trip_and_day_number(db: Session, trip_id: int, day_number: int):
+def get_activities_by_trip_and_day_number(
+    db: Session,
+    trip_id: int,
+    day_number: int,
+    current_user_id: Optional[int] = None,
+):
     activities = (
         db.query(models.itinerary.Activity)
         .join(
@@ -319,6 +333,17 @@ def get_activities_by_trip_and_day_number(db: Session, trip_id: int, day_number:
             .all()
         )
         user_name_by_id = {u.id: (u.name or "").strip() for u in users}
+
+    my_vote_by_activity_id: dict[int, str] = {}
+    if current_user_id is not None and activities:
+        activity_ids = [a.id for a in activities]
+        votes = (
+            db.query(models.itinerary.ActivityVote)
+            .filter(models.itinerary.ActivityVote.user_id == current_user_id)
+            .filter(models.itinerary.ActivityVote.activity_id.in_(activity_ids))
+            .all()
+        )
+        my_vote_by_activity_id = {v.activity_id: v.vote for v in votes}
 
     result = []
     for activity in activities:
@@ -359,6 +384,7 @@ def get_activities_by_trip_and_day_number(db: Session, trip_id: int, day_number:
                 "created_by_name": created_by_name,
                 "upvotes": upvotes,
                 "total_votes": upvotes + downvotes,
+                "my_vote": my_vote_by_activity_id.get(activity.id),
             }
         )
 
