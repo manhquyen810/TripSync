@@ -10,6 +10,57 @@ from typing import Optional
 from datetime import date
 from sqlalchemy.exc import SQLAlchemyError
 
+
+def _get_joined_trip_member_count(db: Session, trip_id: int) -> int:
+    return (
+        db.query(models.trip.TripMember)
+        .filter(models.trip.TripMember.trip_id == trip_id)
+        .filter(models.trip.TripMember.status == "joined")
+        .count()
+    )
+
+
+def _maybe_auto_confirm_activity(db: Session, activity_id: int) -> bool:
+    activity = (
+        db.query(models.itinerary.Activity)
+        .join(
+            models.itinerary.ItineraryDay,
+            models.itinerary.Activity.day_id == models.itinerary.ItineraryDay.id,
+        )
+        .filter(models.itinerary.Activity.id == activity_id)
+        .first()
+    )
+    if not activity or activity.is_confirmed:
+        return False
+
+    day = (
+        db.query(models.itinerary.ItineraryDay)
+        .filter(models.itinerary.ItineraryDay.id == activity.day_id)
+        .first()
+    )
+    if not day:
+        return False
+
+    member_count = _get_joined_trip_member_count(db, day.trip_id)
+    if member_count <= 0:
+        return False
+
+    required_upvotes = (member_count // 2) + 1
+    upvotes = (
+        db.query(models.itinerary.ActivityVote)
+        .filter(models.itinerary.ActivityVote.activity_id == activity_id)
+        .filter(models.itinerary.ActivityVote.vote == "upvote")
+        .count()
+    )
+
+    if upvotes < required_upvotes:
+        return False
+
+    activity.is_confirmed = True
+    db.commit()
+    db.refresh(activity)
+    return True
+
 # --- USERS ---
 def get_user_by_email(db: Session, email: str):
     return db.query(models.user.User).filter(models.user.User.email == email).first()
@@ -256,12 +307,16 @@ def vote_activity(db: Session, activity_id: int, user_id: int, vote: str = "upvo
         existing.vote = vote
         db.commit()
         db.refresh(existing)
+        if vote == "upvote":
+            _maybe_auto_confirm_activity(db, activity_id)
         return existing
         
     v = models.itinerary.ActivityVote(activity_id=activity_id, user_id=user_id, vote=vote)
     db.add(v)
     db.commit()
     db.refresh(v)
+    if vote == "upvote":
+        _maybe_auto_confirm_activity(db, activity_id)
     return v
 
 def get_activities_for_day(db: Session, day_id: int):
