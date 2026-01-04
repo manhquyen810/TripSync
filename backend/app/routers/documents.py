@@ -5,8 +5,8 @@ from app.dependencies import get_current_user
 import os
 from app.config import UPLOAD_DIR
 from uuid import uuid4
+from app import models
 from app.crud.crud import create_document, list_documents_for_trip, get_document, delete_document
-from app.schemas.document import DocumentRead
 from app.schemas.response import ApiResponse  # Thêm dòng này
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -36,13 +36,32 @@ def get_document_endpoint(document_id: int, db: Session = Depends(get_db), curre
     doc = get_document(db, document_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Tài liệu không tồn tại")
+
+    is_member = db.query(models.trip.TripMember).filter(
+        models.trip.TripMember.trip_id == doc.trip_id,
+        models.trip.TripMember.user_id == current_user.id,
+    ).first()
+    if not is_member:
+        raise HTTPException(status_code=403, detail="Không có quyền truy cập tài liệu này")
+
     return ApiResponse(message="Chi tiết tài liệu", data=doc)
 
 
 @router.delete("/{document_id}", response_model=ApiResponse)
 def delete_document_endpoint(document_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    doc = delete_document(db, document_id)
+    doc = get_document(db, document_id)
     if not doc:
+        raise HTTPException(status_code=404, detail="Tài liệu không tồn tại")
+
+    is_member = db.query(models.trip.TripMember).filter(
+        models.trip.TripMember.trip_id == doc.trip_id,
+        models.trip.TripMember.user_id == current_user.id,
+    ).first()
+    if not is_member:
+        raise HTTPException(status_code=403, detail="Không có quyền xóa tài liệu này")
+
+    deleted = delete_document(db, document_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Tài liệu không tồn tại")
 
     # Best-effort: remove uploaded file from disk if it's in /uploads.
@@ -55,4 +74,4 @@ def delete_document_endpoint(document_id: int, db: Session = Depends(get_db), cu
     except Exception:
         pass
 
-    return ApiResponse(message="Xóa tài liệu thành công", data=doc)
+    return ApiResponse(message="Xóa tài liệu thành công", data=deleted)
