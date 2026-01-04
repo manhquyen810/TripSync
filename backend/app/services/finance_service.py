@@ -113,13 +113,31 @@ def calculate_trip_balances(db: Session, trip_id: int):
         if abs(creditor["amount"]) < 0.01:
             j += 1
 
-    # BƯỚC 4: Lấy thông tin User (Tên, Avatar) để hiển thị Frontend đẹp hơn
-    final_result = []
+    # BƯỚC 4: Tính tổng chi tiêu (total_expense)
+    total_expense = sum(exp.amount for exp in expenses)
+    
+    # BƯỚC 5: Tạo danh sách balances với thông tin user
+    balance_list = []
+    for user_id, balance_amount in balances.items():
+        user = db.query(models.user.User).get(user_id)
+        if user:
+            balance_list.append({
+                "user_id": user_id,
+                "name": user.name,
+                "avatar_url": user.avatar_url,
+                "balance": balance_amount
+            })
+    
+    # Sắp xếp theo balance giảm dần (người được trả nhiều nhất trước)
+    balance_list.sort(key=lambda x: x["balance"], reverse=True)
+    
+    # BƯỚC 6: Lấy thông tin User cho settlements (để hiển thị suggestions)
+    settlements_result = []
     for t in transactions:
         from_user = db.query(models.user.User).get(t["from_user_id"])
         to_user = db.query(models.user.User).get(t["to_user_id"])
         
-        final_result.append({
+        settlements_result.append({
             "from_user": {
                 "id": from_user.id,
                 "name": from_user.name,
@@ -132,5 +150,10 @@ def calculate_trip_balances(db: Session, trip_id: int):
             },
             "amount": t["amount"]
         })
-        
-    return final_result
+    
+    # Trả về format mới: total_expense + balances + settlements
+    return {
+        "total_expense": round(total_expense, 2),
+        "balances": balance_list,
+        "settlements": settlements_result  # Giữ lại cho FE nếu cần hiển thị gợi ý thanh toán
+    }
