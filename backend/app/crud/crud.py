@@ -233,6 +233,17 @@ def create_document(db: Session, trip_id: int, uploader_id: int, filename: str, 
 def list_documents_for_trip(db: Session, trip_id: int):
     return db.query(models.document.Document).filter(models.document.Document.trip_id == trip_id).all()
 
+def get_document(db: Session, document_id: int):
+    return db.query(models.document.Document).filter(models.document.Document.id == document_id).first()
+
+def delete_document(db: Session, document_id: int):
+    doc = db.query(models.document.Document).filter(models.document.Document.id == document_id).first()
+    if not doc:
+        return None
+    db.delete(doc)
+    db.commit()
+    return doc
+
 # --- CHECKLIST ---
 def create_checklist_item(db: Session, trip_id: int, content: str, assignee: int | None = None):
     it = models.checklist.ChecklistItem(trip_id=trip_id, content=content, assignee=assignee)
