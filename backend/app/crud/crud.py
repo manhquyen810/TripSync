@@ -426,6 +426,14 @@ def get_activities_by_trip_and_day_number(
         if activity.created_by is not None:
             created_by_name = user_name_by_id.get(activity.created_by, "")
 
+        def _safe_float(v):
+            if v is None:
+                return None
+            try:
+                return float(v)
+            except Exception:
+                return None
+
         result.append(
             {
                 "id": activity.id,
@@ -433,6 +441,11 @@ def get_activities_by_trip_and_day_number(
                 "title": activity.title,
                 "description": activity.description,
                 "location": activity.location,
+                # Coordinates (optional) so clients can render map markers/routes.
+                "location_lat": activity.location_lat,
+                "location_long": activity.location_long,
+                "latitude": _safe_float(activity.location_lat),
+                "longitude": _safe_float(activity.location_long),
                 "start_time": start_time,
                 "is_confirmed": activity.is_confirmed,
                 "created_by": activity.created_by,
