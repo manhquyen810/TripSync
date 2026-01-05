@@ -277,6 +277,7 @@ def create_activity(db: Session, activity: itinerary_schema.ActivityCreate, user
         day_id=activity.day_id,
         created_by=user_id,
         title=activity.title,
+        category=getattr(activity, "category", None),
         description=activity.description,
         location=activity.location,
         location_lat=activity.location_lat, 
@@ -439,6 +440,7 @@ def get_activities_by_trip_and_day_number(
                 "id": activity.id,
                 "day_id": activity.day_id,
                 "title": activity.title,
+                "category": getattr(activity, "category", None),
                 "description": activity.description,
                 "location": activity.location,
                 # Coordinates (optional) so clients can render map markers/routes.
@@ -654,6 +656,8 @@ def update_activity(db: Session, activity_id: int, activity_data):
         return None
     
     activity.title = activity_data.title
+    if hasattr(activity_data, "category"):
+        activity.category = activity_data.category
     activity.description = activity_data.description
     activity.location = activity_data.location
     activity.location_lat = activity_data.location_lat
