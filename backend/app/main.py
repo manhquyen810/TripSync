@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- QUAN TRỌNG: Import TỪNG file model để SQLAlchemy nhận diện và tạo bảng ---
-from app.models import user, trip, itinerary, expense, document, checklist, exchange_rate
+from app.models import user, trip, itinerary, expense, document, checklist, exchange_rate, notification
 
 # Import routers
 from app.routers import auth as auth_router
@@ -27,6 +27,7 @@ from app.routers import expenses as expenses_router
 from app.routers import documents as documents_router
 from app.routers import checklist as checklist_router
 from app.routers import exchange_rates as exchange_rates_router
+from app.routers import notifications as notifications_router
 
 # --- RESET DATABASE (Dùng cho Dev) ---
 # Cảnh báo: Dòng này sẽ XÓA SẠCH dữ liệu cũ mỗi khi restart server
@@ -83,6 +84,7 @@ app.include_router(expenses_router.router)
 app.include_router(documents_router.router)
 app.include_router(checklist_router.router)
 app.include_router(exchange_rates_router.router)
+app.include_router(notifications_router.router)
 
 # --- QUẢN LÝ WEBSOCKET (Đã nâng cấp để chia theo từng Trip) ---
 class ConnectionManager:

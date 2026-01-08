@@ -6,6 +6,11 @@ from app.schemas.expense import ExpenseCreate, SettlementCreate
 from app.schemas.response import ApiResponse
 from app.dependencies import get_current_user
 from app.services.finance_service import calculate_trip_balances
+from app.models.notification import Notification
+from app.models.trip import Trip
+from app.models.user import User
+from app.services.push_notification_service import firebase_service
+from app.services.notification_service import email_service
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -15,6 +20,46 @@ def add_expense(e: ExpenseCreate, db: Session = Depends(get_db), current_user = 
         # Sử dụng payer_id từ request, nếu không có thì dùng current_user
         payer_id = e.payer_id if e.payer_id is not None else current_user.id
         ex = create_expense(db, expense=e, user_id=payer_id)
+        
+        # Get trip and payer info
+        trip = db.query(Trip).filter(Trip.id == e.trip_id).first()
+        payer = db.query(User).filter(User.id == payer_id).first()
+        
+        if trip and payer:
+            # Notify all trip members (except payer)
+            for member in trip.members:
+                if member.id != payer_id:
+                    # Create notification
+                    notification = Notification(
+                        user_id=member.id,
+                        trip_id=trip.id,
+                        title="New Expense Added",
+                        message=f"{payer.name} added an expense of {e.amount} {e.currency}",
+                        type="expense_added"
+                    )
+                    db.add(notification)
+                    db.commit()
+                    db.refresh(notification)
+                    
+                    # Send push notification
+                    if member.device_token:
+                        firebase_service.send_push_notification(
+                            device_token=member.device_token,
+                            title="New Expense",
+                            body=f"{payer.name} added {e.amount} {e.currency} in {trip.name}",
+                            data={"trip_id": str(trip.id), "expense_id": str(ex.id), "type": "expense_added"}
+                        )
+                    
+                    # Send email
+                    email_service.send_expense_email(
+                        to_email=member.email,
+                        trip_name=trip.name,
+                        payer_name=payer.name,
+                        amount=e.amount,
+                        currency=e.currency,
+                        description=e.description or "No description"
+                    )
+        
         return ApiResponse(message="Thêm chi tiêu thành công", data=ex)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -46,6 +91,42 @@ def get_trip_debts(trip_id: int, db: Session = Depends(get_db), current_user = D
 @router.post("/settle", response_model=ApiResponse)
 def settle_debt(s: SettlementCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     settlement = create_settlement(db, settlement=s, payer_id=current_user.id)
+    
+    # Get trip, payer and receiver info
+    trip = db.query(Trip).filter(Trip.id == s.trip_id).first()
+    receiver = db.query(User).filter(User.id == s.receiver_id).first()
+    
+    if trip and receiver:
+        # Notify receiver
+        notification = Notification(
+            user_id=receiver.id,
+            trip_id=trip.id,
+            title="Payment Received",
+            message=f"{current_user.name} paid you {s.amount} {s.currency}",
+            type="payment_received"
+        )
+        db.add(notification)
+        db.commit()
+        db.refresh(notification)
+        
+        # Send push notification
+        if receiver.device_token:
+            firebase_service.send_push_notification(
+                device_token=receiver.device_token,
+                title="Payment Received!",
+                body=f"{current_user.name} paid you {s.amount} {s.currency}",
+                data={"trip_id": str(trip.id), "settlement_id": str(settlement.id), "type": "payment_received"}
+            )
+        
+        # Send email
+        email_service.send_payment_email(
+            to_email=receiver.email,
+            trip_name=trip.name,
+            payer_name=current_user.name,
+            amount=s.amount,
+            currency=s.currency
+        )
+    
     return ApiResponse(message="Ghi nhận trả nợ thành công", data=settlement)
 
 @router.get("/settle/trip/{trip_id}", response_model=ApiResponse)

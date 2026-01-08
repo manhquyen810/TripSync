@@ -15,9 +15,13 @@ class User(Base):
     # OTP fields for password reset
     otp_code = Column(String, nullable=True)
     otp_expires_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Device token for push notifications
+    device_token = Column(String, nullable=True)
 
     trips = relationship("Trip", back_populates="members", secondary="trip_members")
     expenses_paid = relationship("Expense", back_populates="payer")
     expenses_splits = relationship("ExpenseSplit", back_populates="user")
     settlements_paid = relationship("Settlement", back_populates="payer", foreign_keys="[Settlement.payer_id]")
     settlements_received = relationship("Settlement", back_populates="receiver", foreign_keys="[Settlement.receiver_id]")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")

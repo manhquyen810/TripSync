@@ -13,6 +13,10 @@ from app.schemas.trip import TripCreate, TripRead, TripUpdate
 from app.schemas.response import ApiResponse
 from app.dependencies import get_current_user
 from pydantic import BaseModel, EmailStr
+from app.models.notification import Notification
+from app.models.user import User
+from app.services.push_notification_service import firebase_service
+from app.services.notification_service import email_service
 
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -63,6 +67,37 @@ def join_trip(join_data: JoinTripCode, db: Session = Depends(get_db), current_us
     trip = join_trip_by_code(db, invite_code=join_data.invite_code, user_id=current_user.id)
     if not trip:
         raise HTTPException(404, "Mã mời không hợp lệ hoặc bạn đã tham gia chuyến đi này")
+    
+    # Notify all existing members
+    for member in trip.members:
+        if member.id != current_user.id:
+            notification = Notification(
+                user_id=member.id,
+                trip_id=trip.id,
+                title="New Member Joined",
+                message=f"{current_user.name} joined {trip.name}",
+                type="member_joined"
+            )
+            db.add(notification)
+            db.commit()
+            db.refresh(notification)
+            
+            # Send push notification
+            if member.device_token:
+                firebase_service.send_push_notification(
+                    device_token=member.device_token,
+                    title="New Member!",
+                    body=f"{current_user.name} joined {trip.name}",
+                    data={"trip_id": str(trip.id), "type": "member_joined"}
+                )
+            
+            # Send email
+            email_service.send_member_joined_email(
+                to_email=member.email,
+                trip_name=trip.name,
+                member_name=current_user.name
+            )
+    
     return ApiResponse(message="Tham gia chuyến đi thành công", data=TripRead.from_orm(trip))
 
 class AddMemberRequest(BaseModel):
@@ -82,6 +117,37 @@ def add_member(trip_id: int, member_data: AddMemberRequest, db: Session = Depend
     
     if result["already_member"]:
         return ApiResponse(message="Người dùng đã là thành viên", data=result["user"])
+    
+    # Send invite notification to new member
+    new_member = db.query(User).filter(User.email == member_data.user_email).first()
+    if new_member:
+        notification = Notification(
+            user_id=new_member.id,
+            trip_id=trip.id,
+            title="Trip Invitation",
+            message=f"{current_user.name} invited you to {trip.name}",
+            type="invite_trip"
+        )
+        db.add(notification)
+        db.commit()
+        db.refresh(notification)
+        
+        # Send push notification
+        if new_member.device_token:
+            firebase_service.send_push_notification(
+                device_token=new_member.device_token,
+                title="You're Invited!",
+                body=f"{current_user.name} invited you to {trip.name}",
+                data={"trip_id": str(trip.id), "invite_code": trip.invite_code, "type": "invite_trip"}
+            )
+        
+        # Send email
+        email_service.send_trip_invite_email(
+            to_email=new_member.email,
+            trip_name=trip.name,
+            inviter_name=current_user.name,
+            invite_code=trip.invite_code
+        )
     
     return ApiResponse(message="Thêm thành viên thành công", data=result["user"])
 

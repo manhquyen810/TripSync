@@ -19,4 +19,4 @@ uploads/
 *.tmp
 
 # Alembic migration cache
-migrations/__pycache__/
+migrations/__pycache__/backend/tripsync-23f7b-146563807954.json
