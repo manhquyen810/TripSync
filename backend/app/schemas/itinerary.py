@@ -6,6 +6,7 @@ from datetime import time, datetime
 class ActivityCreate(BaseModel):
     day_id: int
     title: str
+    category: Optional[str] = None
     description: Optional[str] = None
     location: Optional[str] = None
     location_lat: Optional[str] = None
@@ -17,6 +18,7 @@ class ActivityRead(BaseModel):
     day_id: int
     created_by: int
     title: str
+    category: Optional[str] = None
     description: Optional[str] = None
     location: Optional[str] = None
     location_lat: Optional[str] = None

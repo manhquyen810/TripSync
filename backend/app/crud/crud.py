@@ -10,6 +10,57 @@ from typing import Optional
 from datetime import date
 from sqlalchemy.exc import SQLAlchemyError
 
+
+def _get_joined_trip_member_count(db: Session, trip_id: int) -> int:
+    return (
+        db.query(models.trip.TripMember)
+        .filter(models.trip.TripMember.trip_id == trip_id)
+        .filter(models.trip.TripMember.status == "joined")
+        .count()
+    )
+
+
+def _maybe_auto_confirm_activity(db: Session, activity_id: int) -> bool:
+    activity = (
+        db.query(models.itinerary.Activity)
+        .join(
+            models.itinerary.ItineraryDay,
+            models.itinerary.Activity.day_id == models.itinerary.ItineraryDay.id,
+        )
+        .filter(models.itinerary.Activity.id == activity_id)
+        .first()
+    )
+    if not activity or activity.is_confirmed:
+        return False
+
+    day = (
+        db.query(models.itinerary.ItineraryDay)
+        .filter(models.itinerary.ItineraryDay.id == activity.day_id)
+        .first()
+    )
+    if not day:
+        return False
+
+    member_count = _get_joined_trip_member_count(db, day.trip_id)
+    if member_count <= 0:
+        return False
+
+    required_upvotes = (member_count // 2) + 1
+    upvotes = (
+        db.query(models.itinerary.ActivityVote)
+        .filter(models.itinerary.ActivityVote.activity_id == activity_id)
+        .filter(models.itinerary.ActivityVote.vote == "upvote")
+        .count()
+    )
+
+    if upvotes < required_upvotes:
+        return False
+
+    activity.is_confirmed = True
+    db.commit()
+    db.refresh(activity)
+    return True
+
 # --- USERS ---
 def get_user_by_email(db: Session, email: str):
     return db.query(models.user.User).filter(models.user.User.email == email).first()
@@ -226,6 +277,7 @@ def create_activity(db: Session, activity: itinerary_schema.ActivityCreate, user
         day_id=activity.day_id,
         created_by=user_id,
         title=activity.title,
+        category=getattr(activity, "category", None),
         description=activity.description,
         location=activity.location,
         location_lat=activity.location_lat, 
@@ -238,21 +290,34 @@ def create_activity(db: Session, activity: itinerary_schema.ActivityCreate, user
     return db_activity
 
 def vote_activity(db: Session, activity_id: int, user_id: int, vote: str = "upvote"):
+    if vote not in ("upvote", "downvote"):
+        raise ValueError("vote_type phải là upvote hoặc downvote")
+
     existing = db.query(models.itinerary.ActivityVote).filter(
         models.itinerary.ActivityVote.activity_id == activity_id,
         models.itinerary.ActivityVote.user_id == user_id
     ).first()
     
     if existing:
+        # Toggle off when tapping the same vote again.
+        if existing.vote == vote:
+            db.delete(existing)
+            db.commit()
+            return None
+
         existing.vote = vote
         db.commit()
         db.refresh(existing)
+        if vote == "upvote":
+            _maybe_auto_confirm_activity(db, activity_id)
         return existing
         
     v = models.itinerary.ActivityVote(activity_id=activity_id, user_id=user_id, vote=vote)
     db.add(v)
     db.commit()
     db.refresh(v)
+    if vote == "upvote":
+        _maybe_auto_confirm_activity(db, activity_id)
     return v
 
 def get_activities_for_day(db: Session, day_id: int):
@@ -297,13 +362,103 @@ def get_itinerary_for_trip(db: Session, trip_id: int):
         })
     return result
 
-def get_activities_by_trip_and_day_number(db: Session, trip_id: int, day_number: int):
-    return db.query(models.itinerary.Activity)\
-             .join(models.itinerary.ItineraryDay, models.itinerary.Activity.day_id == models.itinerary.ItineraryDay.id)\
-             .filter(models.itinerary.ItineraryDay.trip_id == trip_id)\
-             .filter(models.itinerary.ItineraryDay.day_number == day_number)\
-             .order_by(models.itinerary.Activity.start_time.asc())\
-             .all()
+def get_activities_by_trip_and_day_number(
+    db: Session,
+    trip_id: int,
+    day_number: int,
+    current_user_id: Optional[int] = None,
+):
+    activities = (
+        db.query(models.itinerary.Activity)
+        .join(
+            models.itinerary.ItineraryDay,
+            models.itinerary.Activity.day_id == models.itinerary.ItineraryDay.id,
+        )
+        .filter(models.itinerary.ItineraryDay.trip_id == trip_id)
+        .filter(models.itinerary.ItineraryDay.day_number == day_number)
+        .order_by(models.itinerary.Activity.start_time.asc())
+        .all()
+    )
+
+    user_ids = {a.created_by for a in activities if a.created_by is not None}
+    user_name_by_id: dict[int, str] = {}
+    if user_ids:
+        users = (
+            db.query(models.user.User)
+            .filter(models.user.User.id.in_(user_ids))
+            .all()
+        )
+        user_name_by_id = {u.id: (u.name or "").strip() for u in users}
+
+    my_vote_by_activity_id: dict[int, str] = {}
+    if current_user_id is not None and activities:
+        activity_ids = [a.id for a in activities]
+        votes = (
+            db.query(models.itinerary.ActivityVote)
+            .filter(models.itinerary.ActivityVote.user_id == current_user_id)
+            .filter(models.itinerary.ActivityVote.activity_id.in_(activity_ids))
+            .all()
+        )
+        my_vote_by_activity_id = {v.activity_id: v.vote for v in votes}
+
+    result = []
+    for activity in activities:
+        upvotes = (
+            db.query(models.itinerary.ActivityVote)
+            .filter(models.itinerary.ActivityVote.activity_id == activity.id)
+            .filter(models.itinerary.ActivityVote.vote == "upvote")
+            .count()
+        )
+        downvotes = (
+            db.query(models.itinerary.ActivityVote)
+            .filter(models.itinerary.ActivityVote.activity_id == activity.id)
+            .filter(models.itinerary.ActivityVote.vote == "downvote")
+            .count()
+        )
+
+        start_time = ""
+        if activity.start_time is not None:
+            try:
+                start_time = activity.start_time.strftime("%H:%M")
+            except Exception:
+                start_time = str(activity.start_time)
+
+        created_by_name = ""
+        if activity.created_by is not None:
+            created_by_name = user_name_by_id.get(activity.created_by, "")
+
+        def _safe_float(v):
+            if v is None:
+                return None
+            try:
+                return float(v)
+            except Exception:
+                return None
+
+        result.append(
+            {
+                "id": activity.id,
+                "day_id": activity.day_id,
+                "title": activity.title,
+                "category": getattr(activity, "category", None),
+                "description": activity.description,
+                "location": activity.location,
+                # Coordinates (optional) so clients can render map markers/routes.
+                "location_lat": activity.location_lat,
+                "location_long": activity.location_long,
+                "latitude": _safe_float(activity.location_lat),
+                "longitude": _safe_float(activity.location_long),
+                "start_time": start_time,
+                "is_confirmed": activity.is_confirmed,
+                "created_by": activity.created_by,
+                "created_by_name": created_by_name,
+                "upvotes": upvotes,
+                "total_votes": upvotes + downvotes,
+                "my_vote": my_vote_by_activity_id.get(activity.id),
+            }
+        )
+
+    return result
 
 # --- EXPENSES ---
 def create_expense(db: Session, expense: expense_schema.ExpenseCreate, user_id: int):
@@ -509,6 +664,8 @@ def update_activity(db: Session, activity_id: int, activity_data):
         return None
     
     activity.title = activity_data.title
+    if hasattr(activity_data, "category"):
+        activity.category = activity_data.category
     activity.description = activity_data.description
     activity.location = activity_data.location
     activity.location_lat = activity_data.location_lat

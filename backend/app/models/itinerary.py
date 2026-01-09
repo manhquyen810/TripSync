@@ -16,6 +16,7 @@ class Activity(Base):
     id = Column(Integer, primary_key=True, index=True)
     day_id = Column(Integer, ForeignKey("itinerary_days.id"), nullable=False)
     title = Column(String, nullable=False)
+    category = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     location = Column(String, nullable=True)
     location_lat = Column(String, nullable=True)
